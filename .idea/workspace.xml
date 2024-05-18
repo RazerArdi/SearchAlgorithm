@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ab6ada28-6218-4c33-8a89-6f5357650e24" name="Changes" comment="A1">
+    <list default="true" id="ab6ada28-6218-4c33-8a89-6f5357650e24" name="Changes" comment="A2">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/pro/searchalgorithm/PathFinder.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/pro/searchalgorithm/PathFinder.java" afterDir="false" />
     </list>
@@ -85,7 +85,15 @@
       <option name="project" value="LOCAL" />
       <updated>1716032116774</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="A2">
+      <option name="closed" value="true" />
+      <created>1716046272661</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1716046272661</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -101,6 +109,7 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="A1" />
-    <option name="LAST_COMMIT_MESSAGE" value="A1" />
+    <MESSAGE value="A2" />
+    <option name="LAST_COMMIT_MESSAGE" value="A2" />
   </component>
 </project>
