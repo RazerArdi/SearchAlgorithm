@@ -5,6 +5,8 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.PriorityQueue;
 
 class Node {
     int x, y;
@@ -133,7 +135,6 @@ class PathFinderGUI extends JFrame implements ActionListener {
             resetPath();
             statusLabel.setText("Status: Path reset.");
             selectedNode = null;
-
         } else {
             for (int i = 0; i < ROWS; i++) {
                 for (int j = 0; j < COLS; j++) {
@@ -159,7 +160,6 @@ class PathFinderGUI extends JFrame implements ActionListener {
             }
         }
     }
-
 
     private void handleNodeSelection(int x, int y) {
         Node node = grid[x][y];
@@ -242,6 +242,7 @@ class PathFinderGUI extends JFrame implements ActionListener {
         gridButtons[node.x][node.y].setBackground(color);
         gridButtons[node.x][node.y].setText(symbol);
     }
+
     private void visualizeAlgorithm(String algorithm) {
         ArrayList<Node> visitedNodes;
         ArrayList<Node> shortestPath;
@@ -249,25 +250,52 @@ class PathFinderGUI extends JFrame implements ActionListener {
             case "A*":
                 visitedNodes = new ArrayList<>();
                 shortestPath = aStarAlgorithm(visitedNodes);
-                colorVisitedNodes(visitedNodes);
                 break;
             case "Dijkstra":
                 visitedNodes = new ArrayList<>();
                 shortestPath = dijkstraAlgorithm(visitedNodes);
-                colorVisitedNodes(visitedNodes);
                 break;
             default:
                 return;
         }
-        colorVisitedNodes(visitedNodes);
-        Timer timer = new Timer(100 * visitedNodes.size(), new ActionListener() {
+        animateAlgorithm(visitedNodes, shortestPath);
+    }
+
+    private void animateAlgorithm(ArrayList<Node> visitedNodes, ArrayList<Node> shortestPath) {
+        // Animasi node yang dikunjungi
+        Timer visitedTimer = new Timer(50, null);
+        visitedTimer.addActionListener(new ActionListener() {
+            int index = 0;
             @Override
             public void actionPerformed(ActionEvent e) {
-                colorShortestPath(shortestPath);
+                if (index < visitedNodes.size()) {
+                    Node node = visitedNodes.get(index);
+                    node.isVisited = true;
+                    updateButtonColor(node);
+                    index++;
+                } else {
+                    visitedTimer.stop();
+                    // Animasi jalur terpendek setelah semua node yang dikunjungi selesai dianimasikan
+                    Timer pathTimer = new Timer(100, null);
+                    pathTimer.addActionListener(new ActionListener() {
+                        int pathIndex = 0;
+                        @Override
+                        public void actionPerformed(ActionEvent e) {
+                            if (pathIndex < shortestPath.size()) {
+                                Node node = shortestPath.get(pathIndex);
+                                node.isShortestPath = true;
+                                updateButtonColor(node);
+                                pathIndex++;
+                            } else {
+                                pathTimer.stop();
+                            }
+                        }
+                    });
+                    pathTimer.start();
+                }
             }
         });
-        timer.setRepeats(false);
-        timer.start();
+        visitedTimer.start();
     }
 
     private ArrayList<Node> aStarAlgorithm(ArrayList<Node> visitedNodes) {
@@ -276,6 +304,7 @@ class PathFinderGUI extends JFrame implements ActionListener {
         boolean[][] visited = new boolean[ROWS][COLS];
         int[][] parentX = new int[ROWS][COLS];
         int[][] parentY = new int[ROWS][COLS];
+        Node goalNode = null;
 
         // Mengatur jarak awal ke tak terhingga
         for (int i = 0; i < ROWS; i++) {
@@ -284,9 +313,8 @@ class PathFinderGUI extends JFrame implements ActionListener {
             }
         }
 
-        // Mencari node awal dan goal
+        // Mencari node awal
         Node startNode = null;
-        Node goalNode = null;
         for (int i = 0; i < ROWS; i++) {
             for (int j = 0; j < COLS; j++) {
                 if (grid[i][j].isStart) {
@@ -304,7 +332,8 @@ class PathFinderGUI extends JFrame implements ActionListener {
         }
 
         // Inisialisasi array openList dan closedList
-        ArrayList<Node> openList = new ArrayList<>();
+        Node finalGoalNode = goalNode;
+        PriorityQueue<Node> openList = new PriorityQueue<>(Comparator.comparingInt(a -> distance[a.x][a.y] + heuristic(a, finalGoalNode)));
         ArrayList<Node> closedList = new ArrayList<>();
 
         // Menambahkan node awal ke openList
@@ -313,111 +342,10 @@ class PathFinderGUI extends JFrame implements ActionListener {
         // Melakukan iterasi hingga openList kosong
         while (!openList.isEmpty()) {
             // Mengambil node dengan jarak terpendek dari openList
-            Node currentNode = openList.get(0);
-            for (Node node : openList) {
-                if (distance[node.x][node.y] < distance[currentNode.x][currentNode.y]) {
-                    currentNode = node;
-                }
-            }
+            Node currentNode = openList.poll();
 
             // Memindahkan currentNode ke closedList
-            openList.remove(currentNode);
             closedList.add(currentNode);
-
-            // Jika currentNode adalah goalNode, maka path ditemukan
-            if (currentNode == goalNode) {
-                ArrayList<Node> shortestPath = new ArrayList<>();
-                while (currentNode != startNode) {
-                    shortestPath.add(currentNode);
-                    int parentXVal = parentX[currentNode.x][currentNode.y];
-                    int parentYVal = parentY[currentNode.x][currentNode.y];
-                    currentNode = grid[parentXVal][parentYVal];
-                }
-                shortestPath.add(startNode);
-                return shortestPath;
-            }
-
-            // Mendapatkan tetangga dari currentNode
-            ArrayList<Node> neighbors = getNeighbors(currentNode);
-            for (Node neighbor : neighbors) {
-                if (closedList.contains(neighbor) || neighbor.isWall) {
-                    continue;
-                }
-
-                int tentativeDistance = distance[currentNode.x][currentNode.y] + 1;
-                if (tentativeDistance < distance[neighbor.x][neighbor.y]) {
-                    distance[neighbor.x][neighbor.y] = tentativeDistance;
-                    parentX[neighbor.x][neighbor.y] = currentNode.x;
-                    parentY[neighbor.x][neighbor.y] = currentNode.y;
-
-                    if (!openList.contains(neighbor)) {
-                        openList.add(neighbor);
-                        neighbor.isAStar = true; // Tandai node sebagai dikunjungi oleh A*
-                        visitedNodes.add(neighbor);
-                    }
-                }
-            }
-        }
-
-        return new ArrayList<>(); // Mengembalikan array kosong jika path tidak ditemukan
-    }
-
-    private ArrayList<Node> dijkstraAlgorithm(ArrayList<Node> visitedNodes) {
-        // Inisialisasi nilai awal
-        int[][] distance = new int[ROWS][COLS];
-        boolean[][] visited = new boolean[ROWS][COLS];
-        int[][] parentX = new int[ROWS][COLS];
-        int[][] parentY = new int[ROWS][COLS];
-
-        // Mengatur jarak awal ke tak terhingga
-        for (int i = 0; i < ROWS; i++) {
-            for (int j = 0; j < COLS; j++) {
-                distance[i][j] = Integer.MAX_VALUE;
-            }
-        }
-
-        // Mencari node awal dan goal
-        Node startNode = null;
-        Node goalNode = null;
-        for (int i = 0; i < ROWS; i++) {
-            for (int j = 0; j < COLS; j++) {
-                if (grid[i][j].isStart) {
-                    startNode = grid[i][j];
-                    distance[i][j] = 0;
-                } else if (grid[i][j].isGoal) {
-                    goalNode = grid[i][j];
-                }
-            }
-        }
-
-        // Pengecekan apakah start dan goal ditemukan
-        if (startNode == null || goalNode == null) {
-            return new ArrayList<>(); // Mengembalikan array kosong jika start atau goal tidak ditemukan
-        }
-
-        // Inisialisasi array openList dan closedList
-        ArrayList<Node> openList = new ArrayList<>();
-        ArrayList<Node> closedList = new ArrayList<>();
-
-        // Menambahkan node awal ke openList
-        openList.add(startNode);
-
-        // Melakukan iterasi hingga openList kosong
-        while (!openList.isEmpty()) {
-            // Mengambil node dengan jarak terpendek dari openList
-            Node currentNode = openList.get(0);
-            for (Node node : openList) {
-                if (distance[node.x][node.y] < distance[currentNode.x][currentNode.y]) {
-                    currentNode = node;
-                }
-            }
-
-            // Memindahkan currentNode ke closedList
-            openList.remove(currentNode);
-            closedList.add(currentNode);
-
-            // Menambahkan currentNode ke visitedNodes untuk visualisasi
-            visitedNodes.add(currentNode);
 
             // Jika currentNode adalah goalNode, maka path ditemukan
             if (currentNode == goalNode) {
@@ -458,52 +386,110 @@ class PathFinderGUI extends JFrame implements ActionListener {
 
     private ArrayList<Node> getNeighbors(Node node) {
         ArrayList<Node> neighbors = new ArrayList<>();
-        int[] dx = {-1, 1, 0, 0};
-        int[] dy = {0, 0, -1, 1};
-
-        for (int i = 0; i < 4; i++) {
-            int newX = node.x + dx[i];
-            int newY = node.y + dy[i];
-
-            if (newX >= 0 && newX < ROWS && newY >= 0 && newY < COLS) {
-                neighbors.add(grid[newX][newY]);
+        int[][] directions = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+        for (int[] direction : directions) {
+            int newRow = node.x + direction[0];
+            int newCol = node.y + direction[1];
+            if (isValidCell(newRow, newCol)) {
+                neighbors.add(grid[newRow][newCol]);
             }
         }
-
         return neighbors;
     }
 
-    private void colorVisitedNodes(ArrayList<Node> visitedNodes) {
-        Timer timer = new Timer(100, new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                if (visitedNodeIndex < visitedNodes.size()) {
-                    Node node = visitedNodes.get(visitedNodeIndex);
-                    if (node.isAStar) {
-                        // Tandai node yang dikunjungi oleh A* dengan warna tertentu
-                        node.isVisited = true;
-                        node.isAStar = false; // Atur kembali ke false setelah diwarnai
-                        updateButtonColor(node);
-                    } else {
-                        // Tandai node yang dikunjungi oleh Dijkstra
-                        node.isVisited = true;
-                        updateButtonColor(node);
-                    }
-                    visitedNodeIndex++;
-                } else {
-                    ((Timer) e.getSource()).stop();
-                }
-            }
-        });
-        visitedNodeIndex = 0; // Reset visitedNodeIndex sebelum memulai visualisasi
-        timer.start();
+    private boolean isValidCell(int row, int col) {
+        return row >= 0 && row < ROWS && col >= 0 && col < COLS;
     }
 
-    private void colorShortestPath(ArrayList<Node> shortestPath) {
-        for (Node node : shortestPath) {
-            node.isShortestPath = true;
-            updateButtonColor(node);
+    private int heuristic(Node a, Node b) {
+        // Menggunakan jarak Manhattan sebagai heuristik
+        return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+    }
+
+    private ArrayList<Node> dijkstraAlgorithm(ArrayList<Node> visitedNodes) {
+        // Mirip dengan implementasi A*, tapi tanpa perhitungan heuristik
+        // Inisialisasi nilai awal
+        int[][] distance = new int[ROWS][COLS];
+        boolean[][] visited = new boolean[ROWS][COLS];
+        int[][] parentX = new int[ROWS][COLS];
+        int[][] parentY = new int[ROWS][COLS];
+        Node goalNode = null;
+
+        // Mengatur jarak awal ke tak terhingga
+        for (int i = 0; i < ROWS; i++) {
+            for (int j = 0; j < COLS; j++) {
+                distance[i][j] = Integer.MAX_VALUE;
+            }
         }
+
+        // Mencari node awal
+        Node startNode = null;
+        for (int i = 0; i < ROWS; i++) {
+            for (int j = 0; j < COLS; j++) {
+                if (grid[i][j].isStart) {
+                    startNode = grid[i][j];
+                    distance[i][j] = 0;
+                } else if (grid[i][j].isGoal) {
+                    goalNode = grid[i][j];
+                }
+            }
+        }
+
+        // Pengecekan apakah start dan goal ditemukan
+        if (startNode == null || goalNode == null) {
+            return new ArrayList<>(); // Mengembalikan array kosong jika start atau goal tidak ditemukan
+        }
+
+        // Inisialisasi array openList dan closedList
+        PriorityQueue<Node> openList = new PriorityQueue<>(Comparator.comparingInt(a -> distance[a.x][a.y]));
+        ArrayList<Node> closedList = new ArrayList<>();
+
+        // Menambahkan node awal ke openList
+        openList.add(startNode);
+
+        // Melakukan iterasi hingga openList kosong
+        while (!openList.isEmpty()) {
+            // Mengambil node dengan jarak terpendek dari openList
+            Node currentNode = openList.poll();
+
+            // Memindahkan currentNode ke closedList
+            closedList.add(currentNode);
+
+            // Jika currentNode adalah goalNode, maka path ditemukan
+            if (currentNode == goalNode) {
+                ArrayList<Node> shortestPath = new ArrayList<>();
+                while (currentNode != startNode) {
+                    shortestPath.add(currentNode);
+                    int parentXVal = parentX[currentNode.x][currentNode.y];
+                    int parentYVal = parentY[currentNode.x][currentNode.y];
+                    currentNode = grid[parentXVal][parentYVal];
+                }
+                shortestPath.add(startNode);
+                return shortestPath;
+            }
+
+            // Mendapatkan tetangga dari currentNode
+            ArrayList<Node> neighbors = getNeighbors(currentNode);
+            for (Node neighbor : neighbors) {
+                if (closedList.contains(neighbor) || neighbor.isWall) {
+                    continue;
+                }
+
+                int tentativeDistance = distance[currentNode.x][currentNode.y] + 1;
+                if (tentativeDistance < distance[neighbor.x][neighbor.y]) {
+                    distance[neighbor.x][neighbor.y] = tentativeDistance;
+                    parentX[neighbor.x][neighbor.y] = currentNode.x;
+                    parentY[neighbor.x][neighbor.y] = currentNode.y;
+
+                    if (!openList.contains(neighbor)) {
+                        openList.add(neighbor);
+                        visitedNodes.add(neighbor);
+                    }
+                }
+            }
+        }
+
+        return new ArrayList<>(); // Mengembalikan array kosong jika path tidak ditemukan
     }
 
     public static void main(String[] args) {
